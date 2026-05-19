@@ -1,0 +1,191 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createBrowserClient } from '@supabase/auth-helpers-nextjs'
+import { useRouter } from 'next/navigation'
+import Navbar from './Navbar'
+import UploadScreen from './UploadScreen'
+import Dashboard from './Dashboard'
+import { getDefaultGoals } from '@/lib/benchmarks'
+import { parseAnalysis } from '@/lib/parseAnalysis'
+
+function loadGoals() {
+  if (typeof window === 'undefined') return getDefaultGoals()
+  try {
+    const raw = localStorage.getItem('cpr-goals')
+    return raw ? { ...getDefaultGoals(), ...JSON.parse(raw) } : getDefaultGoals()
+  } catch {
+    return getDefaultGoals()
+  }
+}
+
+export default function AppShell({ user, initialAnalyses }) {
+  const router = useRouter()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  )
+
+  const [analyses, setAnalyses] = useState(initialAnalyses)
+  const [currentAnalysis, setCurrentAnalysis] = useState(null)
+  const [goals, setGoals] = useState(loadGoals)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
+
+  // Ensure a profiles row exists for this user (handles existing users with no profile)
+  useEffect(() => {
+    fetch('/api/profile', { method: 'POST' }).catch(() => {})
+  }, [])
+
+  function handleGoalsChange(newGoals) {
+    setGoals(newGoals)
+    try { localStorage.setItem('cpr-goals', JSON.stringify(newGoals)) } catch {}
+  }
+
+  async function handleFileUpload(file) {
+    setUploading(true)
+    setUploadError(null)
+    try {
+      const base64 = await readFileAsBase64(file)
+      const mimeType = file.type // 'application/pdf' | 'image/png' | 'image/jpeg'
+
+      const fileBlock =
+        mimeType === 'application/pdf'
+          ? { type: 'document', source: { type: 'base64', media_type: mimeType, data: base64 } }
+          : { type: 'image',    source: { type: 'base64', media_type: mimeType, data: base64 } }
+
+      const messages = [
+        {
+          role: 'user',
+          content: [
+            fileBlock,
+            {
+              type: 'text',
+              text:
+                'Extract all financial metrics from this auto repair shop CPR report and return them as a single JSON object. ' +
+                'Return ONLY the raw JSON — no markdown, no explanation.\n\n' +
+                'Fields to include (use null if not found). All monetary/percentage values must be plain numbers:\n' +
+                'shop_name, period, period_months, gross_sales, gross_profit, gross_profit_margin, ' +
+                'avg_ticket, total_ros, close_ratio, effective_labor_rate, labor_sales, labor_profit, ' +
+                'labor_profit_pct, parts_sales, parts_profit, parts_profit_pct, hours_presented, ' +
+                'hours_sold, gross_profit_per_hour, total_discounts, total_fees',
+            },
+          ],
+        },
+      ]
+
+      const res = await fetch(process.env.NEXT_PUBLIC_WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages }),
+      })
+
+      const responseData = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        const msg =
+          responseData?.error?.message ||
+          responseData?.message ||
+          `${res.status} ${res.statusText}`
+        throw new Error(msg)
+      }
+
+      // Extract text from Anthropic response envelope
+      const text = responseData?.content?.[0]?.text
+      if (!text) throw new Error('No content returned from analysis service.')
+
+      // Claude should return raw JSON; fall back to stripping a code-fence if present
+      let rawJson
+      const fenceMatch = text.match(/```(?:json)?\s*([\s\S]+?)\s*```/)
+      try {
+        rawJson = JSON.parse(fenceMatch ? fenceMatch[1] : text)
+      } catch {
+        throw new Error('Could not parse metrics from the response. Try a clearer file.')
+      }
+
+      const parsed = parseAnalysis(rawJson)
+
+      if (!parsed || Object.keys(parsed).length === 0) {
+        throw new Error('Could not extract metrics from this report. Please try a different file.')
+      }
+
+      const { data, error } = await supabase
+        .from('analyses')
+        .insert({
+          user_id: user.id,
+          ...parsed,
+          goals,
+        })
+        .select()
+        .single()
+
+      if (error) throw new Error(error.message)
+
+      setAnalyses((prev) => [data, ...prev])
+      setCurrentAnalysis(data)
+    } catch (err) {
+      setUploadError(err.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  function handleSelectAnalysis(a) {
+    setCurrentAnalysis(a)
+  }
+
+  function handleNewUpload() {
+    setCurrentAnalysis(null)
+    setUploadError(null)
+  }
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col">
+      <Navbar
+        user={user}
+        onLogout={handleLogout}
+        showBack={!!currentAnalysis}
+        onBack={handleNewUpload}
+      />
+
+      {currentAnalysis ? (
+        <Dashboard
+          analysis={currentAnalysis}
+          goals={goals}
+          analyses={analyses}
+          onSelectAnalysis={handleSelectAnalysis}
+          onNewUpload={handleNewUpload}
+        />
+      ) : (
+        <UploadScreen
+          goals={goals}
+          onGoalsChange={handleGoalsChange}
+          onFileUpload={handleFileUpload}
+          uploading={uploading}
+          error={uploadError}
+          analyses={analyses}
+          onSelectAnalysis={handleSelectAnalysis}
+        />
+      )}
+    </div>
+  )
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      // result is "data:<mime>;base64,<data>" — strip the prefix
+      const base64 = reader.result.split(',')[1]
+      resolve(base64)
+    }
+    reader.onerror = () => reject(new Error('Failed to read file.'))
+    reader.readAsDataURL(file)
+  })
+}
