@@ -37,9 +37,7 @@ export default function LoginPage() {
         setMessage('Account created! Check your email to confirm, then sign in.')
         setMode('login')
       } else if (mode === 'reset') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/login`,
-        })
+        const { error } = await supabase.auth.resetPasswordForEmail(email)
         if (error) throw error
         setMessage('Check your email for a password reset link.')
       }
