@@ -31,17 +31,29 @@ export default function LoginPage() {
         if (error) throw error
         router.push('/')
         router.refresh()
-      } else {
+      } else if (mode === 'signup') {
         const { error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
         setMessage('Account created! Check your email to confirm, then sign in.')
         setMode('login')
+      } else if (mode === 'reset') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/login`,
+        })
+        if (error) throw error
+        setMessage('Check your email for a password reset link.')
       }
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  function switchMode(newMode) {
+    setMode(newMode)
+    setError(null)
+    setMessage(null)
   }
 
   return (
@@ -61,10 +73,14 @@ export default function LoginPage() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-1">
-            {mode === 'login' ? 'Sign in' : 'Create account'}
+            {mode === 'login' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Reset password'}
           </h1>
           <p className="text-sm text-gray-500 mb-6">
-            {mode === 'login' ? 'Welcome back to CPR Analyzer' : 'Start analyzing your shop performance'}
+            {mode === 'login'
+              ? 'Welcome back to CPR Analyzer'
+              : mode === 'signup'
+              ? 'Start analyzing your shop performance'
+              : "Enter your email and we'll send you a reset link"}
           </p>
 
           {message && (
@@ -93,39 +109,74 @@ export default function LoginPage() {
                 placeholder="you@example.com"
               />
             </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="••••••••"
-              />
-            </div>
+
+            {mode !== 'reset' && (
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="••••••••"
+                />
+              </div>
+            )}
+
+            {mode === 'login' && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => switchMode('reset')}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={loading}
               className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg text-sm transition-colors"
             >
-              {loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
+              {loading
+                ? 'Please wait…'
+                : mode === 'login'
+                ? 'Sign in'
+                : mode === 'signup'
+                ? 'Create account'
+                : 'Send reset link'}
             </button>
           </form>
 
           <p className="mt-4 text-center text-sm text-gray-500">
-            {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
-            <button
-              onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null) }}
-              className="text-blue-600 hover:underline font-medium"
-            >
-              {mode === 'login' ? 'Sign up' : 'Sign in'}
-            </button>
+            {mode === 'reset' ? (
+              <>
+                Remember your password?{' '}
+                <button
+                  onClick={() => switchMode('login')}
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  Sign in
+                </button>
+              </>
+            ) : (
+              <>
+                {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
+                <button
+                  onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  {mode === 'login' ? 'Sign up' : 'Sign in'}
+                </button>
+              </>
+            )}
           </p>
         </div>
       </div>
