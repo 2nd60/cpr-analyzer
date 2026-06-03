@@ -382,11 +382,12 @@ function PartsPanel({ a }) {
 function ShopSummaryPanel({ a }) {
   const fmtMoney = (v) => v != null ? `$${Math.round(v).toLocaleString()}` : '—'
   const fmtPct   = (v) => v != null ? `${v.toFixed(1)}%` : '—'
+  const months   = a.period_months || 1
 
   return (
     <Card title="Shop Summary">
       <DetailTable rows={[
-        { label: 'Car Count',    value: a.total_ros,              avg: 264,   top: 275,   format: (v) => Math.round(v).toString() },
+        { label: 'Car Count',    value: a.total_ros,              avg: Math.round(264 * months),   top: Math.round(275 * months),   format: (v) => Math.round(v).toString() },
         { label: 'Avg Ticket',   value: a.avg_ticket,             avg: 702,   top: 729,   format: fmtMoney },
         { label: 'GP / Hour',    value: a.gross_profit_per_hour,  avg: 171,   top: 200,   format: fmtMoney },
         { label: 'GP Margin',    value: a.gross_profit_margin,    avg: 52.3,  top: 57.4,  format: fmtPct  },
