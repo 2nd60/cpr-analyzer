@@ -65,7 +65,7 @@ export default function AppShell({ user, initialAnalyses }) {
                 'Extract all financial metrics from this auto repair shop CPR report and return them as a single JSON object. ' +
                 'Return ONLY the raw JSON — no markdown, no explanation.\n\n' +
                 'Fields to include (use null if not found). All monetary/percentage values must be plain numbers:\n' +
-                'shop_name, period, period_months, gross_sales, gross_profit, gross_profit_margin, ' +
+                'shop_name, period, period_months (decimal number of months covered — e.g. 1 for a full month, 0.25 for one week, 3 for a quarter; derive from the report date range if not explicit), gross_sales, gross_profit, gross_profit_margin, ' +
                 'avg_ticket, total_ros, close_ratio, effective_labor_rate, labor_sales, labor_profit, ' +
                 'labor_profit_pct, parts_sales, parts_profit, parts_profit_pct, hours_presented, ' +
                 'hours_sold, gross_profit_per_hour, total_discounts, total_fees',
@@ -109,20 +109,24 @@ export default function AppShell({ user, initialAnalyses }) {
         throw new Error('Could not extract metrics from this report. Please try a different file.')
       }
 
+      const periodMonths = parsed.period_months
+      const dbPayload = { ...parsed, goals }
+      if (dbPayload.period_months != null) {
+        // Store as integer (days) until column is migrated to numeric
+        dbPayload.period_months = Math.max(1, Math.round(dbPayload.period_months))
+      }
       const { data, error } = await supabase
         .from('analyses')
-        .insert({
-          user_id: user.id,
-          ...parsed,
-          goals,
-        })
+        .insert({ user_id: user.id, ...dbPayload })
         .select()
         .single()
 
       if (error) throw new Error(error.message)
 
-      setAnalyses((prev) => [data, ...prev])
-      setCurrentAnalysis(data)
+      // Restore decimal period_months in case the DB column is still integer-typed
+      const displayData = { ...data, period_months: periodMonths ?? data.period_months }
+      setAnalyses((prev) => [displayData, ...prev])
+      setCurrentAnalysis(displayData)
     } catch (err) {
       setUploadError(err.message)
     } finally {
@@ -156,8 +160,10 @@ export default function AppShell({ user, initialAnalyses }) {
 
       {currentAnalysis ? (
         <Dashboard
+          key={currentAnalysis.id}
           analysis={currentAnalysis}
           goals={goals}
+          onGoalsChange={handleGoalsChange}
           analyses={analyses}
           onSelectAnalysis={handleSelectAnalysis}
           onNewUpload={handleNewUpload}

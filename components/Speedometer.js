@@ -3,9 +3,6 @@
 import { useEffect, useState } from 'react'
 import { getNeedleColor } from '@/lib/benchmarks'
 
-// SVG half-circle gauge: left=min, right=max, sweeps via top
-// cx=110, cy=115, r=90, strokeWidth=24
-
 const CX = 110
 const CY = 115
 const R = 90
@@ -23,22 +20,21 @@ function arcPath(cx, cy, r, v1, v2) {
   if (Math.abs(v2 - v1) < 0.0001) return ''
   const p1 = polarToCartesian(cx, cy, r, v1)
   const p2 = polarToCartesian(cx, cy, r, v2)
-  const largeArc = Math.abs(v2 - v1) > 0.5 ? 1 : 0
-  return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`
+  // All zones are portions of a 180° semicircle, so largeArc is always 0.
+  // Using 1 for spans > 0.5 incorrectly routes the arc through the bottom (off-screen).
+  return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 0 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`
 }
 
 function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v))
 }
 
-export default function Speedometer({ value, goal, pmaAvg, pmaTop10, gaugeMax, label, format }) {
-  // Leave 15% headroom above the highest benchmark; never shrink below gaugeMax
-  const safeMax = Math.max(gaugeMax, pmaTop10 * 1.15)
+export default function Speedometer({ value, goal, gaugeMax, label, format }) {
+  const safeMax = Math.max(gaugeMax, goal * 1.15)
   const norm = (v) => clamp((v ?? 0) / safeMax, 0, 1)
 
   const vGoal = norm(goal)
-  const vAvg = norm(pmaAvg)
-  const vTop = norm(pmaTop10)
+  const vOrange = norm(goal * 0.70)
   const vVal = norm(value ?? 0)
 
   const [animV, setAnimV] = useState(0)
@@ -47,19 +43,8 @@ export default function Speedometer({ value, goal, pmaAvg, pmaTop10, gaugeMax, l
     return () => clearTimeout(t)
   }, [vVal])
 
-  // Color zone boundaries
-  const vRed = 0
-  const vOrange = norm(goal * 0.70)
-  const vAmber = norm(goal * 0.85)
-  const vGreen = vGoal
-
   const needleColor = getNeedleColor(value, goal)
-
-  // Needle rotation: 0 normalized → -180deg from right, 1 → 0deg
   const needleRotateDeg = -(1 - animV) * 180
-
-  const tipPt = polarToCartesian(CX, CY, R - 2, animV)
-
   const formatVal = format ? format(value ?? 0) : String(Math.round(value ?? 0))
 
   return (
@@ -68,7 +53,7 @@ export default function Speedometer({ value, goal, pmaAvg, pmaTop10, gaugeMax, l
         {label}
       </p>
 
-      <svg viewBox="0 0 220 130" className="w-full max-w-[220px]">
+      <svg viewBox="0 0 220 148" className="w-full max-w-[220px]">
         {/* Background arc */}
         <path
           d={arcPath(CX, CY, R, 0, 1)}
@@ -78,27 +63,21 @@ export default function Speedometer({ value, goal, pmaAvg, pmaTop10, gaugeMax, l
           strokeLinecap="butt"
         />
 
-        {/* Red zone */}
-        {vOrange > vRed && (
-          <path d={arcPath(CX, CY, R, vRed, vOrange)} fill="none" stroke="#fca5a5" strokeWidth={SW} strokeLinecap="butt" />
+        {/* Red zone: 0 – 70% of goal */}
+        {vOrange > 0 && (
+          <path d={arcPath(CX, CY, R, 0, vOrange)} fill="none" stroke="#fca5a5" strokeWidth={SW} strokeLinecap="butt" />
         )}
-        {/* Orange zone */}
-        {vAmber > vOrange && (
-          <path d={arcPath(CX, CY, R, vOrange, vAmber)} fill="none" stroke="#fdba74" strokeWidth={SW} strokeLinecap="butt" />
+        {/* Orange zone: 70% of goal – goal */}
+        {vGoal > vOrange && (
+          <path d={arcPath(CX, CY, R, vOrange, vGoal)} fill="none" stroke="#fdba74" strokeWidth={SW} strokeLinecap="butt" />
         )}
-        {/* Amber zone */}
-        {vGreen > vAmber && (
-          <path d={arcPath(CX, CY, R, vAmber, vGreen)} fill="none" stroke="#fcd34d" strokeWidth={SW} strokeLinecap="butt" />
-        )}
-        {/* Green zone (goal to max) */}
-        {1 > vGreen && (
-          <path d={arcPath(CX, CY, R, vGreen, 1)} fill="none" stroke="#86efac" strokeWidth={SW} strokeLinecap="butt" />
+        {/* Green zone: goal – max */}
+        {1 > vGoal && (
+          <path d={arcPath(CX, CY, R, vGoal, 1)} fill="none" stroke="#86efac" strokeWidth={SW} strokeLinecap="butt" />
         )}
 
-        {/* Benchmark tick lines */}
+        {/* Goal tick */}
         <BenchmarkTick cx={CX} cy={CY} v={vGoal} color="#1e293b" r={R} sw={SW} />
-        <BenchmarkTick cx={CX} cy={CY} v={vAvg} color="#f59e0b" r={R} sw={SW} />
-        <BenchmarkTick cx={CX} cy={CY} v={vTop} color="#06b6d4" r={R} sw={SW} />
 
         {/* Needle */}
         <g
@@ -126,9 +105,8 @@ export default function Speedometer({ value, goal, pmaAvg, pmaTop10, gaugeMax, l
         {/* Value text */}
         <text
           x={CX}
-          y={CY + 18}
+          y={CY + 28}
           textAnchor="middle"
-          className="font-bold"
           style={{ fontFamily: 'var(--font-geist-sans, sans-serif)', fontWeight: 700, fontSize: 18, fill: needleColor }}
         >
           {value != null ? formatVal : '—'}
@@ -136,10 +114,8 @@ export default function Speedometer({ value, goal, pmaAvg, pmaTop10, gaugeMax, l
       </svg>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-3 mt-1 flex-wrap">
+      <div className="flex items-center justify-center gap-3 mt-1">
         <LegendDot color="#1e293b" label={`Goal: ${format ? format(goal) : goal}`} />
-        <LegendDot color="#f59e0b" label={`Avg: ${format ? format(pmaAvg) : pmaAvg}`} />
-        <LegendDot color="#06b6d4" label={`Top: ${format ? format(pmaTop10) : pmaTop10}`} />
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { BENCHMARKS, GOAL_KEYS } from '@/lib/benchmarks'
 import Speedometer from './Speedometer'
 import HistorySidebar from './HistorySidebar'
@@ -8,11 +9,6 @@ import AnalysisDetails from './AnalysisDetails'
 function money(v) {
   if (v == null) return '—'
   return `$${Math.round(v).toLocaleString()}`
-}
-
-function pct(v) {
-  if (v == null) return '—'
-  return `${v.toFixed(1)}%`
 }
 
 function StatCard({ label, value }) {
@@ -24,11 +20,62 @@ function StatCard({ label, value }) {
   )
 }
 
-export default function Dashboard({ analysis, goals, analyses, onSelectAnalysis, onNewUpload }) {
-  const a = analysis
+function GoalsPanel({ goals, onSave, onCancel }) {
+  const [draft, setDraft] = useState({ ...goals })
+
+  function handleChange(key, raw) {
+    const n = parseFloat(raw)
+    setDraft((d) => ({ ...d, [key]: isNaN(n) ? d[key] : n }))
+  }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)]">
+    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
+        {GOAL_KEYS.map((key) => {
+          const b = BENCHMARKS[key]
+          return (
+            <div key={key}>
+              <label className="block text-xs font-medium text-gray-500 mb-1">{b.label}</label>
+              <input
+                type="number"
+                step="any"
+                value={draft[key] ?? ''}
+                onChange={(e) => handleChange(key, e.target.value)}
+                className="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:border-blue-400"
+              />
+            </div>
+          )
+        })}
+      </div>
+      <div className="flex items-center gap-2 justify-end">
+        <button
+          onClick={onCancel}
+          className="text-sm text-gray-400 hover:text-gray-600 px-3 py-1.5 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => onSave(draft)}
+          className="text-sm bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg transition-colors"
+        >
+          Save Goals
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default function Dashboard({ analysis, goals, onGoalsChange, analyses, onSelectAnalysis, onNewUpload }) {
+  const a = analysis
+  const [editingGoals, setEditingGoals] = useState(false)
+
+  function handleSaveGoals(newGoals) {
+    onGoalsChange(newGoals)
+    setEditingGoals(false)
+  }
+
+  return (
+    <div className="relative">
       <HistorySidebar
         analyses={analyses}
         currentId={a.id}
@@ -36,7 +83,7 @@ export default function Dashboard({ analysis, goals, analyses, onSelectAnalysis,
         onNewUpload={onNewUpload}
       />
 
-      <main className="flex-1 overflow-y-auto bg-gray-50">
+      <main className="min-h-[calc(100vh-3.5rem)] overflow-y-auto bg-gray-50">
         <div className="max-w-5xl mx-auto px-6 py-6">
           {/* Header */}
           <div className="mb-6">
@@ -68,23 +115,50 @@ export default function Dashboard({ analysis, goals, analyses, onSelectAnalysis,
             </div>
           )}
 
+          {/* Gauge section header */}
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+              Performance Gauges
+            </h2>
+            <button
+              onClick={() => setEditingGoals((v) => !v)}
+              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                editingGoals
+                  ? 'bg-red-600 text-white border-red-600'
+                  : 'bg-red-600 text-white border-red-600 hover:bg-red-500 hover:border-red-500'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              Adjust Goals
+            </button>
+          </div>
+
+          {/* Goals edit panel */}
+          {editingGoals && (
+            <GoalsPanel
+              goals={goals}
+              onSave={handleSaveGoals}
+              onCancel={() => setEditingGoals(false)}
+            />
+          )}
+
           {/* Gauge grid */}
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">
-            Performance Gauges
-          </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {GOAL_KEYS.map((key) => {
               const b = BENCHMARKS[key]
-              const goalVal = goals[key] ?? b.goal
+              const months = a.period_months || 1
+              const monthlyGoal = goals[key] ?? b.goal
+              const goalVal = b.perMonth ? monthlyGoal * months : monthlyGoal
+              const gaugeMax = b.perMonth ? b.gaugeMax * months : b.gaugeMax
               const value = a[b.field ?? key]
               return (
                 <Speedometer
                   key={key}
                   value={value}
                   goal={goalVal}
-                  pmaAvg={b.pmaAvg}
-                  pmaTop10={b.pmaTop10}
-                  gaugeMax={b.gaugeMax}
+                  gaugeMax={gaugeMax}
                   label={b.label}
                   format={b.format}
                 />
