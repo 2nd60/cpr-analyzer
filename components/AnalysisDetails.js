@@ -64,19 +64,35 @@ function industryBadge(gpMargin) {
 
 // ─── Flag helpers ─────────────────────────────────────────────────────────────
 
-function getFlags(a) {
-  const flags = []
+// Flag severity mirrors gauge color zones:
+//   critical = below 70% of goal
+//   warning  = 70–99% of goal
+//   none     = at or above goal
+function flag(value, goal, tipKey, label, format) {
+  if (value == null || value <= 0 || goal == null || goal <= 0) return null
+  const ratio = value / goal
+  if (ratio >= 1) return null
+  const level = ratio < 0.70 ? 'critical' : 'warning'
+  const pct   = Math.round(ratio * 100)
+  return { level, tipKey, msg: `${label} at ${format(value)} — ${pct}% of your ${format(goal)} goal` }
+}
 
-  if (a.gross_profit_margin != null && a.gross_profit_margin > 0 && a.gross_profit_margin < 50)
-    flags.push({ level: 'critical', tipKey: 'gross_profit_margin', msg: `GP Margin at ${a.gross_profit_margin.toFixed(1)}% — below 50% threshold` })
-  if (a.close_ratio != null && a.close_ratio > 0 && a.close_ratio < 40)
-    flags.push({ level: 'critical', tipKey: 'close_ratio', msg: `Close Ratio at ${a.close_ratio.toFixed(1)}% — below 40% threshold` })
-  if (a.effective_labor_rate != null && a.effective_labor_rate < 120)
-    flags.push({ level: 'warning', tipKey: 'effective_labor_rate', msg: `ELR at $${Math.round(a.effective_labor_rate)} — below $120 target` })
-  if (a.labor_profit_pct != null && a.labor_profit_pct < 55)
-    flags.push({ level: 'warning', tipKey: 'labor_profit_pct', msg: `Labor Profit at ${a.labor_profit_pct.toFixed(1)}% — below 55%` })
-  if (a.parts_profit_pct != null && a.parts_profit_pct < 40)
-    flags.push({ level: 'warning', tipKey: 'parts_profit_pct', msg: `Parts Profit at ${a.parts_profit_pct.toFixed(1)}% — below 40%` })
+function getFlags(a, goals) {
+  const flags = []
+  const g = (key) => goals[key] ?? BENCHMARKS[key]?.goal
+
+  const f1 = flag(a.gross_profit_margin, g('gross_profit_margin'), 'gross_profit_margin', 'GP Margin',     (v) => `${v.toFixed(1)}%`)
+  const f2 = flag(a.close_ratio,         g('close_ratio'),         'close_ratio',         'Close Ratio',   (v) => `${v.toFixed(1)}%`)
+  const f3 = flag(a.effective_labor_rate,g('effective_labor_rate'),'effective_labor_rate','ELR',           (v) => `$${Math.round(v)}`)
+  const f4 = flag(a.labor_profit_pct,    g('labor_profit_pct'),    'labor_profit_pct',    'Labor Profit',  (v) => `${v.toFixed(1)}%`)
+  const f5 = flag(a.parts_profit_pct,    g('parts_profit_pct'),    'parts_profit_pct',    'Parts Profit',  (v) => `${v.toFixed(1)}%`)
+
+  if (f1) flags.push(f1)
+  if (f2) flags.push(f2)
+  if (f3) flags.push(f3)
+  if (f4) flags.push(f4)
+  if (f5) flags.push(f5)
+
   if (a.total_discounts != null && a.gross_sales > 0) {
     const discPct = (a.total_discounts / a.gross_sales) * 100
     if (discPct > 4)
@@ -232,8 +248,8 @@ function FlagCard({ flag }) {
   )
 }
 
-function CoachingFlags({ analysis }) {
-  const flags = getFlags(analysis)
+function CoachingFlags({ analysis, goals }) {
+  const flags = getFlags(analysis, goals)
   const criticals = flags.filter((f) => f.level === 'critical')
   const warnings  = flags.filter((f) => f.level === 'warning')
 
@@ -483,7 +499,7 @@ export default function AnalysisDetails({ analysis, goals }) {
       {/* Row 1: Score + Flags */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <PerformanceScore analysis={a} goals={goals} />
-        <CoachingFlags analysis={a} />
+        <CoachingFlags analysis={a} goals={goals} />
       </div>
 
       {/* Row 2: Money Left + Labor/Parts Split */}
