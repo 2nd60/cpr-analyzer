@@ -65,9 +65,9 @@ function industryBadge(gpMargin) {
 function getFlags(a) {
   const flags = []
 
-  if (a.gross_profit_margin != null && a.gross_profit_margin < 50)
+  if (a.gross_profit_margin != null && a.gross_profit_margin > 0 && a.gross_profit_margin < 50)
     flags.push({ level: 'critical', msg: `GP Margin at ${a.gross_profit_margin.toFixed(1)}% — below 50% threshold` })
-  if (a.close_ratio != null && a.close_ratio < 40)
+  if (a.close_ratio != null && a.close_ratio > 0 && a.close_ratio < 40)
     flags.push({ level: 'critical', msg: `Close Ratio at ${a.close_ratio.toFixed(1)}% — below 40% threshold` })
   if (a.effective_labor_rate != null && a.effective_labor_rate < 120)
     flags.push({ level: 'warning', msg: `ELR at $${Math.round(a.effective_labor_rate)} — below $120 target` })
