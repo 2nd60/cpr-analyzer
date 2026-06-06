@@ -184,7 +184,7 @@ function FlagCard({ flag }) {
 
   const bg      = isCritical ? 'bg-red-50 border-red-100'   : 'bg-amber-50 border-amber-100'
   const headClr = isCritical ? 'text-red-700'               : 'text-amber-700'
-  const badge   = isCritical ? 'CRITICAL'                   : 'WARNING'
+  const badge   = isCritical ? 'CRITICAL'                   : 'ATTENTION'
   const icon    = isCritical ? '🔴'                         : '🟡'
 
   return (
