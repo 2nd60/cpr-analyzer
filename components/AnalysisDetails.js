@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { BENCHMARKS } from '@/lib/benchmarks'
+import { COACHING_TIPS } from '@/lib/coachingTips'
 
 // ─── Score helpers ────────────────────────────────────────────────────────────
 
@@ -66,19 +68,19 @@ function getFlags(a) {
   const flags = []
 
   if (a.gross_profit_margin != null && a.gross_profit_margin > 0 && a.gross_profit_margin < 50)
-    flags.push({ level: 'critical', msg: `GP Margin at ${a.gross_profit_margin.toFixed(1)}% — below 50% threshold` })
+    flags.push({ level: 'critical', tipKey: 'gross_profit_margin', msg: `GP Margin at ${a.gross_profit_margin.toFixed(1)}% — below 50% threshold` })
   if (a.close_ratio != null && a.close_ratio > 0 && a.close_ratio < 40)
-    flags.push({ level: 'critical', msg: `Close Ratio at ${a.close_ratio.toFixed(1)}% — below 40% threshold` })
+    flags.push({ level: 'critical', tipKey: 'close_ratio', msg: `Close Ratio at ${a.close_ratio.toFixed(1)}% — below 40% threshold` })
   if (a.effective_labor_rate != null && a.effective_labor_rate < 120)
-    flags.push({ level: 'warning', msg: `ELR at $${Math.round(a.effective_labor_rate)} — below $120 target` })
+    flags.push({ level: 'warning', tipKey: 'effective_labor_rate', msg: `ELR at $${Math.round(a.effective_labor_rate)} — below $120 target` })
   if (a.labor_profit_pct != null && a.labor_profit_pct < 55)
-    flags.push({ level: 'warning', msg: `Labor Profit at ${a.labor_profit_pct.toFixed(1)}% — below 55%` })
+    flags.push({ level: 'warning', tipKey: 'labor_profit_pct', msg: `Labor Profit at ${a.labor_profit_pct.toFixed(1)}% — below 55%` })
   if (a.parts_profit_pct != null && a.parts_profit_pct < 40)
-    flags.push({ level: 'warning', msg: `Parts Profit at ${a.parts_profit_pct.toFixed(1)}% — below 40%` })
+    flags.push({ level: 'warning', tipKey: 'parts_profit_pct', msg: `Parts Profit at ${a.parts_profit_pct.toFixed(1)}% — below 40%` })
   if (a.total_discounts != null && a.gross_sales > 0) {
     const discPct = (a.total_discounts / a.gross_sales) * 100
     if (discPct > 4)
-      flags.push({ level: 'warning', msg: `Discounts at ${discPct.toFixed(1)}% of gross sales — above 4% threshold` })
+      flags.push({ level: 'warning', tipKey: null, msg: `Discounts at ${discPct.toFixed(1)}% of gross sales — above 4% threshold` })
   }
   return flags
 }
@@ -159,6 +161,77 @@ function PerformanceScore({ analysis, goals }) {
 
 // ─── 2. Coaching Flags ────────────────────────────────────────────────────────
 
+function FlagCard({ flag }) {
+  const [open, setOpen] = useState(false)
+  const isCritical = flag.level === 'critical'
+  const tips = flag.tipKey ? COACHING_TIPS[flag.tipKey] : null
+
+  const bg      = isCritical ? 'bg-red-50 border-red-100'   : 'bg-amber-50 border-amber-100'
+  const headClr = isCritical ? 'text-red-700'               : 'text-amber-700'
+  const badge   = isCritical ? 'CRITICAL'                   : 'WARNING'
+  const icon    = isCritical ? '🔴'                         : '🟡'
+
+  return (
+    <div className={`border rounded-xl overflow-hidden ${bg}`}>
+      {/* Header row */}
+      <button
+        className="w-full flex items-start gap-2 px-3 py-2.5 text-left"
+        onClick={() => tips && setOpen(v => !v)}
+      >
+        <span className="text-base leading-snug shrink-0">{icon}</span>
+        <div className="flex-1 min-w-0">
+          <span className={`text-xs font-bold uppercase tracking-wide ${headClr}`}>{badge} — </span>
+          <span className={`text-xs ${headClr}`}>{flag.msg}</span>
+        </div>
+        {tips && (
+          <svg
+            className={`w-4 h-4 shrink-0 mt-0.5 transition-transform ${headClr} ${open ? 'rotate-180' : ''}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        )}
+      </button>
+
+      {/* Expanded coaching content */}
+      {open && tips && (
+        <div className={`px-4 pb-4 pt-1 border-t ${isCritical ? 'border-red-100' : 'border-amber-100'}`}>
+          {/* Why it matters */}
+          <p className={`text-xs italic mb-3 ${headClr} opacity-80`}>{tips.why}</p>
+
+          {/* Common causes */}
+          <p className={`text-xs font-bold uppercase tracking-wide mb-1.5 ${headClr}`}>Common Causes</p>
+          <ul className="space-y-1 mb-3">
+            {tips.causes.map((c, i) => (
+              <li key={i} className={`text-xs flex gap-1.5 ${headClr}`}>
+                <span className="shrink-0 mt-0.5">•</span>
+                <span>{c}</span>
+              </li>
+            ))}
+          </ul>
+
+          {/* Action steps */}
+          <p className={`text-xs font-bold uppercase tracking-wide mb-1.5 ${headClr}`}>Action Steps</p>
+          <ul className="space-y-1 mb-3">
+            {tips.tips.map((t, i) => (
+              <li key={i} className={`text-xs flex gap-1.5 ${headClr}`}>
+                <span className="shrink-0 font-bold">{i + 1}.</span>
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
+
+          {/* Quick win */}
+          <div className={`rounded-lg px-3 py-2 ${isCritical ? 'bg-red-100' : 'bg-amber-100'}`}>
+            <p className={`text-xs font-bold uppercase tracking-wide mb-0.5 ${headClr}`}>⚡ Quick Win</p>
+            <p className={`text-xs ${headClr}`}>{tips.quickWin}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CoachingFlags({ analysis }) {
   const flags = getFlags(analysis)
   const criticals = flags.filter((f) => f.level === 'critical')
@@ -173,24 +246,10 @@ function CoachingFlags({ analysis }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {criticals.map((f, i) => (
-            <div key={i} className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
-              <span className="text-base leading-snug">🔴</span>
-              <div>
-                <span className="text-xs font-bold text-red-700 uppercase tracking-wide">Critical — </span>
-                <span className="text-xs text-red-700">{f.msg}</span>
-              </div>
-            </div>
+          {[...criticals, ...warnings].map((f, i) => (
+            <FlagCard key={i} flag={f} />
           ))}
-          {warnings.map((f, i) => (
-            <div key={i} className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-              <span className="text-base leading-snug">🟡</span>
-              <div>
-                <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Warning — </span>
-                <span className="text-xs text-amber-700">{f.msg}</span>
-              </div>
-            </div>
-          ))}
+          <p className="text-xs text-gray-400 pt-1">Tap any flag to see coaching tips.</p>
         </div>
       )}
     </Card>
