@@ -13,15 +13,22 @@ const SCORE_METRICS = [
 ]
 
 function calcScore(a, goals) {
-  let total = 0
+  let earned = 0
+  let possible = 0
   const rows = SCORE_METRICS.map(({ key, label, maxPts }) => {
     const goal  = goals[key] ?? BENCHMARKS[key].goal
     const value = a[key]
-    const earned = value == null ? 0 : Math.min(1, value / goal) * maxPts
-    total += earned
-    return { label, maxPts, value, goal, earned }
+    if (value == null) {
+      return { label, maxPts, value, goal, earned: null, skipped: true }
+    }
+    const pts = Math.min(1, value / goal) * maxPts
+    earned += pts
+    possible += maxPts
+    return { label, maxPts, value, goal, earned: pts, skipped: false }
   })
-  return { score: Math.round(total), rows }
+  // Pro-rate to 100 based only on available metrics
+  const score = possible > 0 ? Math.round((earned / possible) * 100) : 0
+  return { score, rows }
 }
 
 function letterGrade(score) {
@@ -117,7 +124,18 @@ function PerformanceScore({ analysis, goals }) {
       </div>
 
       <div className="space-y-2">
-        {rows.map(({ label, maxPts, earned, value, goal }) => {
+        {rows.map(({ label, maxPts, earned, skipped }) => {
+          if (skipped) {
+            return (
+              <div key={label}>
+                <div className="flex justify-between text-xs text-gray-400 mb-0.5">
+                  <span>{label}</span>
+                  <span className="italic">N/A — not in report</span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full" />
+              </div>
+            )
+          }
           const pct = maxPts > 0 ? (earned / maxPts) * 100 : 0
           const barColor = pct >= 100 ? 'bg-green-400' : pct >= 85 ? 'bg-amber-400' : pct >= 70 ? 'bg-orange-400' : 'bg-red-400'
           return (

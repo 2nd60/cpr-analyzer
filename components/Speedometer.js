@@ -30,6 +30,15 @@ function clamp(v, lo, hi) {
 }
 
 export default function Speedometer({ value, goal, gaugeMax, label, format }) {
+  if (value == null) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col items-center justify-center min-h-[160px]">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 text-center">{label}</p>
+        <p className="text-sm text-gray-300 font-medium">N/A</p>
+        <p className="text-xs text-gray-300 mt-1 text-center">Not available in this report</p>
+      </div>
+    )
+  }
   const safeMax = Math.max(gaugeMax, goal * 1.15)
   const norm = (v) => clamp((v ?? 0) / safeMax, 0, 1)
 
