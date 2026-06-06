@@ -64,18 +64,17 @@ function industryBadge(gpMargin) {
 
 function getFlags(a) {
   const flags = []
-  const p = (v) => v ?? 0
 
-  if (p(a.gross_profit_margin) < 50)
-    flags.push({ level: 'critical', msg: `GP Margin at ${a.gross_profit_margin?.toFixed(1)}% — below 50% threshold` })
-  if (p(a.close_ratio) < 40)
-    flags.push({ level: 'critical', msg: `Close Ratio at ${a.close_ratio?.toFixed(1)}% — below 40% threshold` })
-  if (a.effective_labor_rate != null && p(a.effective_labor_rate) < 120)
+  if (a.gross_profit_margin != null && a.gross_profit_margin < 50)
+    flags.push({ level: 'critical', msg: `GP Margin at ${a.gross_profit_margin.toFixed(1)}% — below 50% threshold` })
+  if (a.close_ratio != null && a.close_ratio < 40)
+    flags.push({ level: 'critical', msg: `Close Ratio at ${a.close_ratio.toFixed(1)}% — below 40% threshold` })
+  if (a.effective_labor_rate != null && a.effective_labor_rate < 120)
     flags.push({ level: 'warning', msg: `ELR at $${Math.round(a.effective_labor_rate)} — below $120 target` })
-  if (a.labor_profit_pct != null && p(a.labor_profit_pct) < 55)
-    flags.push({ level: 'warning', msg: `Labor Profit at ${a.labor_profit_pct?.toFixed(1)}% — below 55%` })
-  if (a.parts_profit_pct != null && p(a.parts_profit_pct) < 40)
-    flags.push({ level: 'warning', msg: `Parts Profit at ${a.parts_profit_pct?.toFixed(1)}% — below 40%` })
+  if (a.labor_profit_pct != null && a.labor_profit_pct < 55)
+    flags.push({ level: 'warning', msg: `Labor Profit at ${a.labor_profit_pct.toFixed(1)}% — below 55%` })
+  if (a.parts_profit_pct != null && a.parts_profit_pct < 40)
+    flags.push({ level: 'warning', msg: `Parts Profit at ${a.parts_profit_pct.toFixed(1)}% — below 40%` })
   if (a.total_discounts != null && a.gross_sales > 0) {
     const discPct = (a.total_discounts / a.gross_sales) * 100
     if (discPct > 4)
