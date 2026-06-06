@@ -5,6 +5,7 @@ import { BENCHMARKS, GOAL_KEYS } from '@/lib/benchmarks'
 import Speedometer from './Speedometer'
 import HistorySidebar from './HistorySidebar'
 import AnalysisDetails from './AnalysisDetails'
+import TrendsTab from './TrendsTab'
 
 function money(v) {
   if (v == null) return '—'
@@ -68,6 +69,7 @@ function GoalsPanel({ goals, onSave, onCancel }) {
 export default function Dashboard({ analysis, goals, onGoalsChange, analyses, onSelectAnalysis, onNewUpload }) {
   const a = analysis
   const [editingGoals, setEditingGoals] = useState(false)
+  const [activeTab, setActiveTab] = useState('gauges')
 
   function handleSaveGoals(newGoals) {
     onGoalsChange(newGoals)
@@ -115,58 +117,73 @@ export default function Dashboard({ analysis, goals, onGoalsChange, analyses, on
             </div>
           )}
 
-          {/* Gauge section header */}
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
-              Performance Gauges
-            </h2>
-            <button
-              onClick={() => setEditingGoals((v) => !v)}
-              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
-                editingGoals
-                  ? 'bg-red-600 text-white border-red-600'
-                  : 'bg-red-600 text-white border-red-600 hover:bg-red-500 hover:border-red-500'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-              Adjust Goals
-            </button>
+          {/* Tab bar */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+              {['gauges', 'trends'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors capitalize ${
+                    activeTab === tab
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab === 'gauges' ? 'Performance Gauges' : 'Trends'}
+                </button>
+              ))}
+            </div>
+
+            {activeTab === 'gauges' && (
+              <button
+                onClick={() => setEditingGoals((v) => !v)}
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors bg-red-600 text-white border-red-600 hover:bg-red-500"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                Adjust Goals
+              </button>
+            )}
           </div>
 
-          {/* Goals edit panel */}
-          {editingGoals && (
-            <GoalsPanel
-              goals={goals}
-              onSave={handleSaveGoals}
-              onCancel={() => setEditingGoals(false)}
-            />
+          {activeTab === 'gauges' && (
+            <>
+              {editingGoals && (
+                <GoalsPanel
+                  goals={goals}
+                  onSave={handleSaveGoals}
+                  onCancel={() => setEditingGoals(false)}
+                />
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {GOAL_KEYS.map((key) => {
+                  const b = BENCHMARKS[key]
+                  const months = a.period_months || 1
+                  const monthlyGoal = goals[key] ?? b.goal
+                  const goalVal = b.perMonth ? monthlyGoal * months : monthlyGoal
+                  const gaugeMax = b.perMonth ? b.gaugeMax * months : b.gaugeMax
+                  const value = a[b.field ?? key]
+                  return (
+                    <Speedometer
+                      key={key}
+                      value={value}
+                      goal={goalVal}
+                      gaugeMax={gaugeMax}
+                      label={b.label}
+                      format={b.format}
+                    />
+                  )
+                })}
+              </div>
+              <AnalysisDetails analysis={a} goals={goals} />
+            </>
           )}
 
-          {/* Gauge grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {GOAL_KEYS.map((key) => {
-              const b = BENCHMARKS[key]
-              const months = a.period_months || 1
-              const monthlyGoal = goals[key] ?? b.goal
-              const goalVal = b.perMonth ? monthlyGoal * months : monthlyGoal
-              const gaugeMax = b.perMonth ? b.gaugeMax * months : b.gaugeMax
-              const value = a[b.field ?? key]
-              return (
-                <Speedometer
-                  key={key}
-                  value={value}
-                  goal={goalVal}
-                  gaugeMax={gaugeMax}
-                  label={b.label}
-                  format={b.format}
-                />
-              )
-            })}
-          </div>
-
-          <AnalysisDetails analysis={a} goals={goals} />
+          {activeTab === 'trends' && (
+            <TrendsTab analyses={analyses} goals={goals} />
+          )}
         </div>
       </main>
     </div>
