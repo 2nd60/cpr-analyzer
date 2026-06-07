@@ -149,6 +149,15 @@ export default function AppShell({ user, initialAnalyses }) {
     setUploadError(null)
   }
 
+  async function handleDeleteAnalysis(id) {
+    await supabase.from('analyses').delete().eq('id', id)
+    setAnalyses((prev) => prev.filter((a) => a.id !== id))
+    if (currentAnalysis?.id === id) {
+      setCurrentAnalysis(null)
+      setUploadError(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar
@@ -167,6 +176,7 @@ export default function AppShell({ user, initialAnalyses }) {
           analyses={analyses}
           onSelectAnalysis={handleSelectAnalysis}
           onNewUpload={handleNewUpload}
+          onDeleteAnalysis={handleDeleteAnalysis}
         />
       ) : (
         <UploadScreen

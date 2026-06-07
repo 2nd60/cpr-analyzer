@@ -66,7 +66,7 @@ function GoalsPanel({ goals, onSave, onCancel }) {
   )
 }
 
-export default function Dashboard({ analysis, goals, onGoalsChange, analyses, onSelectAnalysis, onNewUpload }) {
+export default function Dashboard({ analysis, goals, onGoalsChange, analyses, onSelectAnalysis, onNewUpload, onDeleteAnalysis }) {
   const a = analysis
   const [editingGoals, setEditingGoals] = useState(false)
   const [activeTab, setActiveTab] = useState('gauges')
@@ -83,6 +83,7 @@ export default function Dashboard({ analysis, goals, onGoalsChange, analyses, on
         currentId={a.id}
         onSelect={onSelectAnalysis}
         onNewUpload={onNewUpload}
+        onDelete={onDeleteAnalysis}
       />
 
       <main className="min-h-[calc(100vh-3.5rem)] overflow-y-auto bg-gray-50">
