@@ -22,3 +22,10 @@ body {
 .needle-transition {
   transition: transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+@media print {
+  .no-print { display: none !important; }
+  .print-full { margin-left: 0 !important; }
+  body { background: white; }
+  @page { margin: 0.75in; }
+}

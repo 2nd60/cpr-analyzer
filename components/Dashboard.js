@@ -78,26 +78,37 @@ export default function Dashboard({ analysis, goals, onGoalsChange, analyses, on
 
   return (
     <div className="relative">
-      <HistorySidebar
+      <div className="no-print"><HistorySidebar
         analyses={analyses}
         currentId={a.id}
         onSelect={onSelectAnalysis}
         onNewUpload={onNewUpload}
         onDelete={onDeleteAnalysis}
-      />
+      /></div>
 
-      <main className="min-h-[calc(100vh-3.5rem)] overflow-y-auto bg-gray-50">
+      <main className="min-h-[calc(100vh-3.5rem)] overflow-y-auto bg-gray-50 print-full">
         <div className="max-w-5xl mx-auto px-6 py-6">
           {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {a.shop_name || 'Shop Performance Report'}
-            </h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {[a.period, a.period_months ? `${a.period_months}-month period` : null]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {a.shop_name || 'Shop Performance Report'}
+              </h1>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {[a.period, a.period_months ? `${a.period_months}-month period` : null]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            </div>
+            <button
+              onClick={() => window.print()}
+              className="no-print flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 shadow-sm transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" />
+              </svg>
+              Print
+            </button>
           </div>
 
           {/* Summary cards */}
@@ -119,7 +130,7 @@ export default function Dashboard({ analysis, goals, onGoalsChange, analyses, on
           )}
 
           {/* Tab bar */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="no-print flex items-center justify-between mb-4">
             <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
               {['gauges', 'trends'].map((tab) => (
                 <button

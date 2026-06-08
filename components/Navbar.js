@@ -4,7 +4,7 @@ import Image from 'next/image'
 
 export default function Navbar({ user, onLogout, showBack, onBack }) {
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
+    <header className="no-print sticky top-0 z-50 bg-white border-b border-gray-200">
       <div className="max-w-screen-xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           {showBack && (
