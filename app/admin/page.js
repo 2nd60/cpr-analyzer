@@ -1,9 +1,10 @@
 import { createServerClient } from '@supabase/auth-helpers-nextjs'
+import { supabaseAdmin } from '@/lib/supabase-server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import AppShell from '@/components/AppShell'
+import AdminShell from '@/components/AdminShell'
 
-export default async function Home() {
+export default async function AdminPage() {
   const cookieStore = await cookies()
 
   const supabase = createServerClient(
@@ -24,25 +25,33 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
+  // Verify coach role using admin client (bypasses RLS)
+  const { data: profile } = await supabaseAdmin
     .from('profiles')
-    .select('role, goals')
+    .select('role')
     .eq('id', user.id)
     .single()
 
-  if (profile?.role === 'coach') redirect('/admin')
+  if (profile?.role !== 'coach') redirect('/')
 
-  const { data: analyses } = await supabase
+  // Fetch all non-coach users with their profile info
+  const { data: users } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email, goals')
+    .neq('role', 'coach')
+    .order('id')
+
+  // Fetch most recent analysis per user (for the user list preview)
+  const { data: recentAnalyses } = await supabaseAdmin
     .from('analyses')
-    .select('*')
+    .select('id, user_id, shop_name, period, created_at, gross_profit_margin')
     .order('created_at', { ascending: false })
-    .limit(50)
 
   return (
-    <AppShell
-      user={user}
-      initialAnalyses={analyses ?? []}
-      initialGoals={profile?.goals ?? null}
+    <AdminShell
+      coach={user}
+      users={users ?? []}
+      recentAnalyses={recentAnalyses ?? []}
     />
   )
 }

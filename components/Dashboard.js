@@ -66,7 +66,7 @@ function GoalsPanel({ goals, onSave, onCancel }) {
   )
 }
 
-export default function Dashboard({ analysis, goals, onGoalsChange, analyses, onSelectAnalysis, onNewUpload, onDeleteAnalysis }) {
+export default function Dashboard({ analysis, goals, onGoalsChange, analyses, onSelectAnalysis, onNewUpload, onDeleteAnalysis, readOnly }) {
   const a = analysis
   const [editingGoals, setEditingGoals] = useState(false)
   const [activeTab, setActiveTab] = useState('gauges')
@@ -147,7 +147,7 @@ export default function Dashboard({ analysis, goals, onGoalsChange, analyses, on
               ))}
             </div>
 
-            {activeTab === 'gauges' && (
+            {activeTab === 'gauges' && !readOnly && (
               <button
                 onClick={() => setEditingGoals((v) => !v)}
                 className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors bg-red-600 text-white border-red-600 hover:bg-red-500"

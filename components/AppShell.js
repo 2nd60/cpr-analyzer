@@ -9,7 +9,7 @@ import Dashboard from './Dashboard'
 import { getDefaultGoals } from '@/lib/benchmarks'
 import { parseAnalysis } from '@/lib/parseAnalysis'
 
-function loadGoals() {
+function loadGoalsFallback() {
   if (typeof window === 'undefined') return getDefaultGoals()
   try {
     const raw = localStorage.getItem('cpr-goals')
@@ -19,7 +19,7 @@ function loadGoals() {
   }
 }
 
-export default function AppShell({ user, initialAnalyses }) {
+export default function AppShell({ user, initialAnalyses, initialGoals }) {
   const router = useRouter()
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -28,18 +28,26 @@ export default function AppShell({ user, initialAnalyses }) {
 
   const [analyses, setAnalyses] = useState(initialAnalyses)
   const [currentAnalysis, setCurrentAnalysis] = useState(null)
-  const [goals, setGoals] = useState(loadGoals)
+  const [goals, setGoals] = useState(() =>
+    initialGoals ? { ...getDefaultGoals(), ...initialGoals } : loadGoalsFallback()
+  )
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState(null)
 
-  // Ensure a profiles row exists for this user (handles existing users with no profile)
+  // Ensure profile row exists and email is saved
   useEffect(() => {
     fetch('/api/profile', { method: 'POST' }).catch(() => {})
   }, [])
 
-  function handleGoalsChange(newGoals) {
+  async function handleGoalsChange(newGoals) {
     setGoals(newGoals)
+    // Save to Supabase (primary) and localStorage (fallback)
     try { localStorage.setItem('cpr-goals', JSON.stringify(newGoals)) } catch {}
+    fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goals: newGoals }),
+    }).catch(() => {})
   }
 
   async function handleFileUpload(file) {
@@ -47,7 +55,7 @@ export default function AppShell({ user, initialAnalyses }) {
     setUploadError(null)
     try {
       const base64 = await readFileAsBase64(file)
-      const mimeType = file.type // 'application/pdf' | 'image/png' | 'image/jpeg'
+      const mimeType = file.type
 
       const fileBlock =
         mimeType === 'application/pdf'
@@ -90,11 +98,9 @@ export default function AppShell({ user, initialAnalyses }) {
         throw new Error(msg)
       }
 
-      // Extract text from Anthropic response envelope
       const text = responseData?.content?.[0]?.text
       if (!text) throw new Error('No content returned from analysis service.')
 
-      // Claude should return raw JSON; fall back to stripping a code-fence if present
       let rawJson
       const fenceMatch = text.match(/```(?:json)?\s*([\s\S]+?)\s*```/)
       try {
@@ -112,7 +118,6 @@ export default function AppShell({ user, initialAnalyses }) {
       const periodMonths = parsed.period_months
       const dbPayload = { ...parsed, goals }
       if (dbPayload.period_months != null) {
-        // Store as integer (days) until column is migrated to numeric
         dbPayload.period_months = Math.max(1, Math.round(dbPayload.period_months))
       }
       const { data, error } = await supabase
@@ -123,7 +128,6 @@ export default function AppShell({ user, initialAnalyses }) {
 
       if (error) throw new Error(error.message)
 
-      // Restore decimal period_months in case the DB column is still integer-typed
       const displayData = { ...data, period_months: periodMonths ?? data.period_months }
       setAnalyses((prev) => [displayData, ...prev])
       setCurrentAnalysis(displayData)
@@ -140,22 +144,13 @@ export default function AppShell({ user, initialAnalyses }) {
     router.refresh()
   }
 
-  function handleSelectAnalysis(a) {
-    setCurrentAnalysis(a)
-  }
-
-  function handleNewUpload() {
-    setCurrentAnalysis(null)
-    setUploadError(null)
-  }
+  function handleSelectAnalysis(a) { setCurrentAnalysis(a) }
+  function handleNewUpload() { setCurrentAnalysis(null); setUploadError(null) }
 
   async function handleDeleteAnalysis(id) {
     await supabase.from('analyses').delete().eq('id', id)
     setAnalyses((prev) => prev.filter((a) => a.id !== id))
-    if (currentAnalysis?.id === id) {
-      setCurrentAnalysis(null)
-      setUploadError(null)
-    }
+    if (currentAnalysis?.id === id) { setCurrentAnalysis(null); setUploadError(null) }
   }
 
   return (
@@ -196,11 +191,7 @@ export default function AppShell({ user, initialAnalyses }) {
 function readFileAsBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => {
-      // result is "data:<mime>;base64,<data>" — strip the prefix
-      const base64 = reader.result.split(',')[1]
-      resolve(base64)
-    }
+    reader.onload = () => { resolve(reader.result.split(',')[1]) }
     reader.onerror = () => reject(new Error('Failed to read file.'))
     reader.readAsDataURL(file)
   })
