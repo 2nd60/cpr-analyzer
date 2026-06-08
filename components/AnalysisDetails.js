@@ -4,11 +4,16 @@ import { useState } from 'react'
 import { BENCHMARKS } from '@/lib/benchmarks'
 import { COACHING_TIPS } from '@/lib/coachingTips'
 
+function getMetricValue(a, key) {
+  const b = BENCHMARKS[key]
+  return b?.compute ? b.compute(a) : a[b?.field ?? key]
+}
+
 // ─── Score helpers ────────────────────────────────────────────────────────────
 
 const SCORE_METRICS = [
   { key: 'gross_profit_margin', label: 'GP Margin',    maxPts: 25 },
-  { key: 'close_ratio',         label: 'Close Ratio',  maxPts: 20 },
+  { key: 'hours_per_ro',        label: 'Hrs / Vehicle', maxPts: 20 },
   { key: 'effective_labor_rate',label: 'ELR',          maxPts: 20 },
   { key: 'labor_profit_pct',    label: 'Labor Profit', maxPts: 20 },
   { key: 'parts_profit_pct',    label: 'Parts Profit', maxPts: 15 },
@@ -19,7 +24,7 @@ function calcScore(a, goals) {
   let possible = 0
   const rows = SCORE_METRICS.map(({ key, label, maxPts }) => {
     const goal  = goals[key] ?? BENCHMARKS[key].goal
-    const value = a[key]
+    const value = getMetricValue(a, key)
     if (value == null) {
       return { label, maxPts, value, goal, earned: null, skipped: true }
     }
@@ -82,7 +87,7 @@ function getFlags(a, goals) {
   const g = (key) => goals[key] ?? BENCHMARKS[key]?.goal
 
   const f1 = flag(a.gross_profit_margin, g('gross_profit_margin'), 'gross_profit_margin', 'GP Margin',     (v) => `${v.toFixed(1)}%`)
-  const f2 = flag(a.close_ratio,         g('close_ratio'),         'close_ratio',         'Close Ratio',   (v) => `${v.toFixed(1)}%`)
+  const f2 = flag(getMetricValue(a, 'hours_per_ro'), g('hours_per_ro'), 'hours_per_ro', 'Hrs Presented/Vehicle', (v) => `${v.toFixed(1)} hrs`)
   const f3 = flag(a.effective_labor_rate,g('effective_labor_rate'),'effective_labor_rate','ELR',           (v) => `$${Math.round(v)}`)
   const f4 = flag(a.labor_profit_pct,    g('labor_profit_pct'),    'labor_profit_pct',    'Labor Profit',  (v) => `${v.toFixed(1)}%`)
   const f5 = flag(a.parts_profit_pct,    g('parts_profit_pct'),    'parts_profit_pct',    'Parts Profit',  (v) => `${v.toFixed(1)}%`)
@@ -483,7 +488,7 @@ function ShopSummaryPanel({ a }) {
         { label: 'Avg Ticket',   value: a.avg_ticket,             avg: 702,   top: 729,   format: fmtMoney },
         { label: 'GP / Hour',    value: a.gross_profit_per_hour,  avg: 171,   top: 200,   format: fmtMoney },
         { label: 'GP Margin',    value: a.gross_profit_margin,    avg: 52.3,  top: 57.4,  format: fmtPct  },
-        { label: 'Close Ratio',  value: a.close_ratio,            avg: 47.6,  top: 59.3,  format: fmtPct  },
+        { label: 'Hrs / Vehicle', value: getMetricValue(a, 'hours_per_ro'), avg: 6.5, top: 9.0, format: (v) => v != null ? `${v.toFixed(1)} hrs` : '—' },
       ]} />
     </Card>
   )

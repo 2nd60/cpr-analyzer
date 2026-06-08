@@ -176,7 +176,7 @@ export default function Dashboard({ analysis, goals, onGoalsChange, analyses, on
                   const monthlyGoal = goals[key] ?? b.goal
                   const goalVal = b.perMonth ? monthlyGoal * months : monthlyGoal
                   const gaugeMax = b.perMonth ? b.gaugeMax * months : b.gaugeMax
-                  const value = a[b.field ?? key]
+                  const value = b.compute ? b.compute(a) : a[b.field ?? key]
                   return (
                     <Speedometer
                       key={key}
