@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer,
@@ -211,8 +211,14 @@ function presetToRange(value) {
 export default function TrendsTab({ analyses, goals }) {
   const MIN_REPORTS = 3
   const [preset, setPreset] = useState('week')
-  const [startDate, setStartDate] = useState(() => presetToRange('week').start)
-  const [endDate, setEndDate] = useState(() => presetToRange('week').end)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+
+  useEffect(() => {
+    const r = presetToRange('week')
+    setStartDate(r.start)
+    setEndDate(r.end)
+  }, [])
 
   function handlePreset(value) {
     setPreset(value)
