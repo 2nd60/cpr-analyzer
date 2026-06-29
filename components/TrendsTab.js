@@ -177,7 +177,6 @@ const PRESETS = [
   { label: 'Previous Week', value: 'prev-week' },
   { label: 'Previous 3 Months', value: '3mo' },
   { label: 'Year-to-Date', value: 'ytd' },
-  { label: 'Custom', value: 'custom' },
 ]
 
 function presetToRange(value) {
@@ -211,9 +210,9 @@ function presetToRange(value) {
 
 export default function TrendsTab({ analyses, goals }) {
   const MIN_REPORTS = 3
-  const [preset, setPreset] = useState('all')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [preset, setPreset] = useState('week')
+  const [startDate, setStartDate] = useState(() => presetToRange('week').start)
+  const [endDate, setEndDate] = useState(() => presetToRange('week').end)
 
   function handlePreset(value) {
     setPreset(value)
@@ -285,7 +284,7 @@ export default function TrendsTab({ analyses, goals }) {
           ))}
         </select>
 
-        <span className="text-xs text-gray-300">|</span>
+        <span className="text-xs text-gray-400 italic">or select custom date range:</span>
 
         <label className="text-xs font-medium text-gray-500">Start:</label>
         <input
