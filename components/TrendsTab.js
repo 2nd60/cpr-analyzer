@@ -325,7 +325,7 @@ export default function TrendsTab({ analyses, goals }) {
       {filtered.length < 1 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <p className="text-sm font-semibold text-gray-400">No reports in this date range</p>
-          <button onClick={handleClear} className="text-xs text-blue-500 hover:text-blue-700 mt-2 transition-colors">
+          <button onClick={handleClearAll} className="text-xs text-blue-500 hover:text-blue-700 mt-2 transition-colors">
             Clear filter
           </button>
         </div>
