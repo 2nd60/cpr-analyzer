@@ -263,13 +263,20 @@ export default function TrendsTab({ analyses, goals }) {
     return da - db
   })
 
-  // Apply date range filter
-  const filterStart = startDate ? new Date(startDate) : null
-  const filterEnd = endDate ? new Date(endDate + 'T23:59:59') : null
+  // Build local-midnight Date from a YYYY-MM-DD string (avoids UTC off-by-one)
+  function localDate(str) {
+    if (!str) return null
+    const [y, m, d] = str.split('-').map(Number)
+    return new Date(y, m - 1, d)
+  }
+
+  // Apply date range filter using the report's period date (preferred) or created_at
+  const filterStart = localDate(startDate)
+  const filterEnd = localDate(endDate)
   const filtered = sorted.filter((a) => {
     const d = parsePeriodDate(a.period) ?? new Date(a.created_at)
     if (filterStart && d < filterStart) return false
-    if (filterEnd && d > filterEnd) return false
+    if (filterEnd && d > new Date(filterEnd.getFullYear(), filterEnd.getMonth(), filterEnd.getDate() + 1)) return false
     return true
   })
 
@@ -315,11 +322,9 @@ export default function TrendsTab({ analyses, goals }) {
             Clear
           </button>
         )}
-        {isFiltered && (
-          <span className="text-xs text-gray-400">
-            {filtered.length} of {analyses.length} reports
-          </span>
-        )}
+        <span className="text-xs text-gray-400">
+          {filtered.length} of {analyses.length} reports
+        </span>
       </div>
 
       {filtered.length < 1 ? (
