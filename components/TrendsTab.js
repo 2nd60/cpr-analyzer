@@ -170,16 +170,71 @@ function toInputDate(d) {
   return d.toISOString().slice(0, 10)
 }
 
-function ytdRange() {
-  const start = new Date(new Date().getFullYear(), 0, 1)
-  const end = new Date()
-  return { start: toInputDate(start), end: toInputDate(end) }
+const PRESETS = [
+  { label: 'All Time', value: 'all' },
+  { label: 'Month-to-Date', value: 'mtd' },
+  { label: 'Current Week', value: 'week' },
+  { label: 'Previous Week', value: 'prev-week' },
+  { label: 'Previous 3 Months', value: '3mo' },
+  { label: 'Year-to-Date', value: 'ytd' },
+  { label: 'Custom', value: 'custom' },
+]
+
+function presetToRange(value) {
+  const today = new Date()
+  const end = toInputDate(today)
+  if (value === 'ytd') {
+    return { start: toInputDate(new Date(today.getFullYear(), 0, 1)), end }
+  }
+  if (value === 'mtd') {
+    return { start: toInputDate(new Date(today.getFullYear(), today.getMonth(), 1)), end }
+  }
+  if (value === 'week') {
+    const sun = new Date(today)
+    sun.setDate(today.getDate() - today.getDay())
+    return { start: toInputDate(sun), end }
+  }
+  if (value === 'prev-week') {
+    const sun = new Date(today)
+    sun.setDate(today.getDate() - today.getDay() - 7)
+    const sat = new Date(sun)
+    sat.setDate(sun.getDate() + 6)
+    return { start: toInputDate(sun), end: toInputDate(sat) }
+  }
+  if (value === '3mo') {
+    const d = new Date(today)
+    d.setMonth(d.getMonth() - 3)
+    return { start: toInputDate(d), end }
+  }
+  return { start: '', end: '' }
 }
 
 export default function TrendsTab({ analyses, goals }) {
   const MIN_REPORTS = 3
+  const [preset, setPreset] = useState('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+
+  function handlePreset(value) {
+    setPreset(value)
+    if (value !== 'custom') {
+      const r = presetToRange(value)
+      setStartDate(r.start)
+      setEndDate(r.end)
+    }
+  }
+
+  function handleCustomDate(field, value) {
+    setPreset('custom')
+    if (field === 'start') setStartDate(value)
+    else setEndDate(value)
+  }
+
+  function handleClearAll() {
+    setPreset('all')
+    setStartDate('')
+    setEndDate('')
+  }
 
   if (analyses.length < MIN_REPORTS) {
     return (
@@ -213,57 +268,50 @@ export default function TrendsTab({ analyses, goals }) {
     return true
   })
 
-  const isFiltered = !!(startDate || endDate)
-
-  function handleYTD() {
-    const r = ytdRange()
-    setStartDate(r.start)
-    setEndDate(r.end)
-  }
-
-  function handleClear() {
-    setStartDate('')
-    setEndDate('')
-  }
+  const isFiltered = preset !== 'all'
 
   return (
     <div>
-      {/* Date range controls */}
+      {/* Date range controls — single line */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div className="flex items-center gap-1.5">
-          <label className="text-xs text-gray-500 font-medium">From</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:border-blue-400"
-          />
-        </div>
-        <div className="flex items-center gap-1.5">
-          <label className="text-xs text-gray-500 font-medium">To</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:border-blue-400"
-          />
-        </div>
-        <button
-          onClick={handleYTD}
-          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+        <label className="text-xs font-medium text-gray-500 whitespace-nowrap">Time Period:</label>
+        <select
+          value={preset}
+          onChange={(e) => handlePreset(e.target.value)}
+          className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:border-blue-400"
         >
-          YTD
-        </button>
+          {PRESETS.map((p) => (
+            <option key={p.value} value={p.value}>{p.label}</option>
+          ))}
+        </select>
+
+        <span className="text-xs text-gray-300">|</span>
+
+        <label className="text-xs font-medium text-gray-500">Start:</label>
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => handleCustomDate('start', e.target.value)}
+          className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:border-blue-400"
+        />
+        <label className="text-xs font-medium text-gray-500">End:</label>
+        <input
+          type="date"
+          value={endDate}
+          onChange={(e) => handleCustomDate('end', e.target.value)}
+          className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:border-blue-400"
+        />
+
         {isFiltered && (
           <button
-            onClick={handleClear}
+            onClick={handleClearAll}
             className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 transition-colors"
           >
             Clear
           </button>
         )}
         {isFiltered && (
-          <span className="text-xs text-gray-400 ml-1">
+          <span className="text-xs text-gray-400">
             {filtered.length} of {analyses.length} reports
           </span>
         )}
