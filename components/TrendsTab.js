@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer,
@@ -173,8 +173,6 @@ function toInputDate(d) {
 const PRESETS = [
   { label: 'All Time', value: 'all' },
   { label: 'Month-to-Date', value: 'mtd' },
-  { label: 'Current Week', value: 'week' },
-  { label: 'Previous Week', value: 'prev-week' },
   { label: 'Previous 3 Months', value: '3mo' },
   { label: 'Year-to-Date', value: 'ytd' },
 ]
@@ -188,18 +186,6 @@ function presetToRange(value) {
   if (value === 'mtd') {
     return { start: toInputDate(new Date(today.getFullYear(), today.getMonth(), 1)), end }
   }
-  if (value === 'week') {
-    const sun = new Date(today)
-    sun.setDate(today.getDate() - today.getDay())
-    return { start: toInputDate(sun), end }
-  }
-  if (value === 'prev-week') {
-    const sun = new Date(today)
-    sun.setDate(today.getDate() - today.getDay() - 7)
-    const sat = new Date(sun)
-    sat.setDate(sun.getDate() + 6)
-    return { start: toInputDate(sun), end: toInputDate(sat) }
-  }
   if (value === '3mo') {
     const d = new Date(today)
     d.setMonth(d.getMonth() - 3)
@@ -210,15 +196,9 @@ function presetToRange(value) {
 
 export default function TrendsTab({ analyses, goals }) {
   const MIN_REPORTS = 3
-  const [preset, setPreset] = useState('week')
+  const [preset, setPreset] = useState('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-
-  useEffect(() => {
-    const r = presetToRange('week')
-    setStartDate(r.start)
-    setEndDate(r.end)
-  }, [])
 
   function handlePreset(value) {
     setPreset(value)
