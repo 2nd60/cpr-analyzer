@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
 import { BENCHMARKS } from '@/lib/benchmarks'
+import { parsePeriodDate } from '@/lib/parseAnalysis'
 
 // Shorten the period string for the X-axis label
 function shortPeriod(period) {
@@ -164,8 +166,20 @@ function TrendChart({ metric, data, goals }) {
   )
 }
 
+function toInputDate(d) {
+  return d.toISOString().slice(0, 10)
+}
+
+function ytdRange() {
+  const start = new Date(new Date().getFullYear(), 0, 1)
+  const end = new Date()
+  return { start: toInputDate(start), end: toInputDate(end) }
+}
+
 export default function TrendsTab({ analyses, goals }) {
   const MIN_REPORTS = 3
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   if (analyses.length < MIN_REPORTS) {
     return (
@@ -182,30 +196,109 @@ export default function TrendsTab({ analyses, goals }) {
     )
   }
 
-  // Sort analyses oldest → newest by created_at
-  const sorted = [...analyses].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  // Sort analyses oldest → newest by period date, falling back to created_at
+  const sorted = [...analyses].sort((a, b) => {
+    const da = parsePeriodDate(a.period) ?? new Date(a.created_at)
+    const db = parsePeriodDate(b.period) ?? new Date(b.created_at)
+    return da - db
+  })
+
+  // Apply date range filter
+  const filterStart = startDate ? new Date(startDate) : null
+  const filterEnd = endDate ? new Date(endDate + 'T23:59:59') : null
+  const filtered = sorted.filter((a) => {
+    const d = parsePeriodDate(a.period) ?? new Date(a.created_at)
+    if (filterStart && d < filterStart) return false
+    if (filterEnd && d > filterEnd) return false
+    return true
+  })
+
+  const isFiltered = !!(startDate || endDate)
+
+  function handleYTD() {
+    const r = ytdRange()
+    setStartDate(r.start)
+    setEndDate(r.end)
+  }
+
+  function handleClear() {
+    setStartDate('')
+    setEndDate('')
+  }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {TREND_METRICS.map((metric) => {
-        const data = sorted.map((a) => {
-          const months = a.period_months || 1
-          const raw = a[metric.key]
-          const value = metric.perMonth && raw != null ? raw / months : raw
-          return {
-            label: shortPeriod(a.period),
-            value: value != null ? value : null,
-          }
-        })
-        return (
-          <TrendChart
-            key={metric.key}
-            metric={metric}
-            data={data}
-            goals={goals}
+    <div>
+      {/* Date range controls */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs text-gray-500 font-medium">From</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:border-blue-400"
           />
-        )
-      })}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs text-gray-500 font-medium">To</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:border-blue-400"
+          />
+        </div>
+        <button
+          onClick={handleYTD}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+        >
+          YTD
+        </button>
+        {isFiltered && (
+          <button
+            onClick={handleClear}
+            className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 transition-colors"
+          >
+            Clear
+          </button>
+        )}
+        {isFiltered && (
+          <span className="text-xs text-gray-400 ml-1">
+            {filtered.length} of {analyses.length} reports
+          </span>
+        )}
+      </div>
+
+      {filtered.length < 1 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-sm font-semibold text-gray-400">No reports in this date range</p>
+          <button onClick={handleClear} className="text-xs text-blue-500 hover:text-blue-700 mt-2 transition-colors">
+            Clear filter
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {TREND_METRICS.map((metric) => {
+            const data = filtered.map((a) => {
+              const months = a.period_months || 1
+              const raw = a[metric.key]
+              const value = metric.perMonth && raw != null ? raw / months : raw
+              return {
+                label: shortPeriod(a.period),
+                value: value != null ? value : null,
+              }
+            })
+            return (
+              <TrendChart
+                key={metric.key}
+                metric={metric}
+                data={data}
+                goals={goals}
+              />
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
