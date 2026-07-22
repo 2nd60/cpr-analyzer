@@ -22,10 +22,6 @@ export async function GET(request) {
   }
 
   const webhookUrl = process.env.GHL_INACTIVITY_WEBHOOK_URL
-  if (!webhookUrl) {
-    console.error('[inactivity-check] GHL_INACTIVITY_WEBHOOK_URL is not set')
-    return Response.json({ error: 'Server misconfiguration' }, { status: 500 })
-  }
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -73,6 +69,10 @@ export async function GET(request) {
   const errors = []
 
   async function fireWebhook(email, days_inactive, reminder_sequence) {
+    if (!webhookUrl) {
+      errors.push(`${email} (${reminder_sequence}): GHL_INACTIVITY_WEBHOOK_URL not set — skipped`)
+      return
+    }
     try {
       const res = await fetch(webhookUrl, {
         method: 'POST',
