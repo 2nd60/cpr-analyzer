@@ -1,14 +1,11 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 
-export async function middleware(req) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
-  await supabase.auth.getSession()
-  return res
+export function middleware() {
+  return NextResponse.next()
 }
 
 export const config = {
+  // Exclude cron routes, static files, and login from any middleware processing
   matcher: [
     '/((?!api/cron|_next/static|_next/image|favicon.ico|login).*)',
   ],
