@@ -10,12 +10,11 @@ function daysAgo(n) {
 }
 
 export async function GET(request) {
-  // TODO: re-enable once CRON_SECRET env var is confirmed working in Vercel
-  // const secret = process.env.CRON_SECRET
-  // const auth = request.headers.get('authorization')
-  // if (!secret || auth !== `Bearer ${secret}`) {
-  //   return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  // }
+  const secret = process.env.CRON_SECRET
+  const auth = request.headers.get('authorization')
+  if (!secret || auth !== `Bearer ${secret}`) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const webhookUrl = process.env.GHL_INACTIVITY_WEBHOOK_URL
 
